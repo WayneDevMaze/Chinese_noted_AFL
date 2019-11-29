@@ -1,33 +1,16 @@
 /*
-  Copyright 2013 Google LLC All rights reserved.
+Chinese_noted_afl-fuzz.c
+对源文件添加注释，和自己的个人见解，并随着对其深入不断修正。
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at:
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
+fuzz笔记：
+今天有个讲座，是nesa lab的人来讲的，分享他们那边在做的fuzz相关工作：
+1.在seed方面用机器学习的方式进行；
+2.种子变异策略的选择，不是说所有的变异都合适，有的变异适合某个程序，有的适合另一种程序；https://github.com/puppet-meteor/MOpt-AFL
 */
 
 /*
-   american fuzzy lop - fuzzer code
-   --------------------------------
-
-   Written and maintained by Michal Zalewski <lcamtuf@google.com>
-
-   Forkserver design by Jann Horn <jannhorn@googlemail.com>
-
-   This is the real deal: the program takes an instrumented binary and
-   attempts a variety of basic fuzzing tricks, paying close attention to
-   how they affect the execution path.
-
+头文件part
 */
-
 #define AFL_MAIN
 #include "android-ashmem.h"
 #define MESSAGES_TO_STDOUT
@@ -91,16 +74,16 @@
    really makes no sense to haul them around as function parameters. */
 
 
-EXP_ST u8 *in_dir,                    /* Input directory with test cases  */
-          *out_file,                  /* File to fuzz, if any             */
-          *out_dir,                   /* Working & output directory       */
-          *sync_dir,                  /* Synchronization directory        */
-          *sync_id,                   /* Fuzzer ID                        */
-          *use_banner,                /* Display banner                   */
-          *in_bitmap,                 /* Input bitmap                     */
-          *doc_path,                  /* Path to documentation dir        */
-          *target_path,               /* Path to target binary            */
-          *orig_cmdline;              /* Original command line            */
+EXP_ST u8 *in_dir,                    /* Input directory with test cases  *//* 包含测试用例的文件夹，跟在-i之后 */
+          *out_file,                  /* File to fuzz, if any             *//* */
+          *out_dir,                   /* Working & output directory       *//* 输出文件夹，里面包含各种输出：crashes  fuzz_bitmap  fuzzer_stats  hangs  plot_data  queue*/
+          *sync_dir,                  /* Synchronization directory        *//**/
+          *sync_id,                   /* Fuzzer ID                        *//**/
+          *use_banner,                /* Display banner                   *//**/
+          *in_bitmap,                 /* Input bitmap                     *//**/
+          *doc_path,                  /* Path to documentation dir        *//**/
+          *target_path,               /* Path to target binary            *//**/
+          *orig_cmdline;              /* Original command line            *//**/
 
 EXP_ST u32 exec_tmout = EXEC_TIMEOUT; /* Configurable exec timeout (ms)   */
 static u32 hang_tmout = EXEC_TIMEOUT; /* Timeout used for hang det (ms)   */
@@ -7764,11 +7747,12 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
+//while循环，进行命令行参数判定
   while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
 
     switch (opt) {
 
-      case 'i': /* input dir */
+      case 'i': /* input dir 输入文件夹 */
 
         if (in_dir) FATAL("Multiple -i options not supported");
         in_dir = optarg;
@@ -7777,7 +7761,7 @@ int main(int argc, char** argv) {
 
         break;
 
-      case 'o': /* output dir */
+      case 'o': /* output dir 输出文件夹 */
 
         if (out_dir) FATAL("Multiple -o options not supported");
         out_dir = optarg;
@@ -8117,13 +8101,14 @@ int main(int argc, char** argv) {
   write_stats_file(0, 0, 0);
   save_auto();
 
+/*利用loop强制跳到结束*/
 stop_fuzzing:
 
   SAYF(CURSOR_SHOW cLRD "\n\n+++ Testing aborted %s +++\n" cRST,
        stop_soon == 2 ? "programmatically" : "by user");
 
   /* Running for more than 30 minutes but still doing first cycle? */
-
+  /* 运行超过三十分钟，还是第一轮fuzz。 ？：什么情况下会这样，用例数量太多？用例不够精简？程序复杂？程序设置了陷阱让你一直在里面跑来跑去？*/
   if (queue_cycle == 1 && get_cur_time() - start_time > 30 * 60 * 1000) {
 
     SAYF("\n" cYEL "[!] " cRST
@@ -8131,7 +8116,7 @@ stop_fuzzing:
            "    (For info on resuming, see %s/README.)\n", doc_path);
 
   }
-
+  /*  */
   fclose(plot_file);
   destroy_queue();
   destroy_extras();
