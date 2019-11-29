@@ -6,6 +6,7 @@ fuzz笔记：
 今天有个讲座，是nesa lab的人来讲的，分享他们那边在做的fuzz相关工作：
 1.在seed方面用机器学习的方式进行；
 2.种子变异策略的选择，不是说所有的变异都合适，有的变异适合某个程序，有的适合另一种程序；https://github.com/puppet-meteor/MOpt-AFL
+
 */
 
 /*
