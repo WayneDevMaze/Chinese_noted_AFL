@@ -284,15 +284,15 @@ static u8 run_target(char** argv, u8* mem, u32 len, u8 first_run) {
 
       r.rlim_max = r.rlim_cur = ((rlim_t)mem_limit) << 20;
 
-#ifdef RLIMIT_AS
+  #ifdef RLIMIT_AS
 
       setrlimit(RLIMIT_AS, &r); /* Ignore errors */
 
-#else
+  #else
 
       setrlimit(RLIMIT_DATA, &r); /* Ignore errors */
 
-#endif /* ^RLIMIT_AS */
+  #endif /* ^RLIMIT_AS */
 
     }
 
@@ -464,7 +464,7 @@ static void minimize(char** argv) {
   OKF("Block normalization complete, %u byte%s replaced.", alpha_del0,
       alpha_del0 == 1 ? "" : "s");
 
-next_pass:
+  next_pass:
 
   ACTF(cYEL "--- " cBRI "Pass #%u " cYEL "---", ++cur_pass);
   changed_any = 0;
@@ -478,7 +478,7 @@ next_pass:
 
   ACTF(cBRI "Stage #1: " cRST "Removing blocks of data...");
 
-next_del_blksize:
+  next_del_blksize:
 
   if (!del_len) del_len = 1;
   del_pos  = 0;
@@ -629,7 +629,7 @@ next_del_blksize:
 
   if (changed_any) goto next_pass;
 
-finalize_all:
+  finalize_all:
 
   SAYF("\n"
        cGRA "     File size reduced by : " cRST "%0.02f%% (to %u byte%s)\n"
@@ -1136,7 +1136,7 @@ int main(int argc, char** argv) {
       goto deal_file;
     }
     else{
-      //ACTF()
+      //是文件夹下面的文件也是文件夹的话，在此操作留作递归操作
     }
   }
   else {
