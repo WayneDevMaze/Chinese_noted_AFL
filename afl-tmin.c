@@ -1,38 +1,16 @@
 /*
-  tmin修改：
-  1.添加文件夹功能，可以对整个文件夹进行操作
-*/
+  //tmin修改：
+  2019年11月30日
+  添加文件夹功能，可以对整个文件夹进行操作：在最开始加入 -d 参数（1 代表以文件夹模式输入，0 代表文件模式输入）
 
+  //下一步计划加入递归修改全部文件，包括文件夹
+*/
 /*
   Copyright 2015 Google LLC All rights reserved.
-
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at:
-
     http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-*/
-
-/*
-   american fuzzy lop - test case minimizer
-   ----------------------------------------
-
-   Written and maintained by Michal Zalewski <lcamtuf@google.com>
-
-   A simple test case minimizer that takes an input file and tries to remove
-   as much data as possible while keeping the binary in a crashing state
-   *or* producing consistent instrumentation output (the mode is auto-selected
-   based on the initially observed behavior).
 */
 
 #define AFL_MAIN
-#include "android-ashmem.h"
 
 #include "config.h"
 #include "types.h"
@@ -69,8 +47,8 @@ static u8 *in_file,                   /* Minimizer input test case         */
           *doc_path;                  /* Path to docs                      */
 
 static u8 *in_dir,                    /* Minimizer input direction         */
-          *out_dir,                   /* Minimizer output direction        */
-          *dir_mode;                  /* dir mode : 1(yes) / 0(no)         */
+          *out_dir;                   /* Minimizer output direction        */
+static u8 *dir_mode;                  /* dir mode : 1(yes) / 0(no)         */
 
 static u8* in_data;                   /* Input data for trimming           */
 
@@ -979,60 +957,6 @@ static void read_bitmap(u8* fname) {
 
 }
 
-static void deal_file(){
-
-  setup_shm();
-  setup_signal_handlers();
-
-  set_up_environment();
-
-  find_binary(argv[optind]);
-  detect_file_args(argv + optind);
-
-  if (qemu_mode)
-    use_argv = get_qemu_argv(argv[0], argv + optind, argc - optind);
-  else
-    use_argv = argv + optind;
-
-  exact_mode = !!getenv("AFL_TMIN_EXACT");
-
-  SAYF("\n");
-
-  read_initial_file();
-
-  ACTF("Performing dry run (mem limit = %llu MB, timeout = %u ms%s)...",
-       mem_limit, exec_tmout, edges_only ? ", edges only" : "");
-
-  run_target(use_argv, in_data, in_len, 1);
-
-  if (child_timed_out)
-    FATAL("Target binary times out (adjusting -t may help).");
-
-  if (!crash_mode) {
-
-     OKF("Program terminates normally, minimizing in " 
-         cCYA "instrumented" cRST " mode.");
-
-     if (!anything_set()) FATAL("No instrumentation detected.");
-
-  } else {
-
-     OKF("Program exits with a signal, minimizing in " cMGN "%scrash" cRST
-         " mode.", exact_mode ? "EXACT " : "");
-
-  }
-
-  minimize(use_argv);
-
-  ACTF("Writing output to '%s'...", out_file);
-
-  unlink(prog_in);
-  prog_in = NULL;
-
-  close(write_to_file(out_file, in_data, in_len));
-
-}
-
 /* Main entry point */
 
 int main(int argc, char** argv) {
@@ -1058,7 +982,7 @@ int main(int argc, char** argv) {
       case 'i':
 
         if (in_file) FATAL("Multiple -i options not supported");
-        if (dir_mode == 1)
+        if (*dir_mode == '1')
           in_dir = optarg;
         else
           in_file = optarg;
@@ -1067,7 +991,7 @@ int main(int argc, char** argv) {
       case 'o':
 
         if (out_file) FATAL("Multiple -o options not supported");
-        if (dir_mode == 1)
+        if (*dir_mode == '1')
           out_dir = optarg;
         else
           out_file = optarg;
@@ -1177,27 +1101,106 @@ int main(int argc, char** argv) {
   /* 初步检查参数合法性 */
   if (optind == argc) usage(argv[0]);
 
-  if (dir_mode == 1){
+  if (*dir_mode == '1'){
     if ( !in_dir || !out_dir){
       usage(argv[0]);
     }
-    /* 读取文件夹下的所有文件，每个文件进行操作，在输出文件夹生成相应的文件 */
-    while (1)
-    {
-      
+    /* 读取文件夹下的所有文件，每个文件进行操作，在输出文件夹生成相应的文件【暂时不递归文件夹下面的文件】 */
+    /* 利用loop实现全部文件循环读取 */
+    DIR *d = NULL;
+    struct dirent *dp = NULL;
+    struct stat st;
+    char p_in[256] = {0};
+    char p_out[256] = {0};
+
+    //检查路径合理性
+    if((!(d=opendir(in_dir))) || stat(in_dir, &st) < 0 || !S_ISDIR(st.st_mode)){
+      ACTF("invalid path:%s\n", in_dir);
+      goto finish_tmin;
     }
-    
+    deal_dir:
+    if((dp = readdir(d)) == NULL){
+      closedir(d);
+      goto finish_tmin;
+    }
+    //当前路径和上一级路径以及隐藏文件去掉，避免死循环
+    if ((!strncmp(dp->d_name, ".", 1)) || (!strncmp(dp->d_name, "..", 2)))
+      goto deal_dir;
+
+    snprintf(p_in, sizeof(p_in) - 1, "%s/%s", in_dir, dp->d_name);
+    stat(p_in, &st);
+    snprintf(p_out, sizeof(p_out) - 1, "%s/%s", out_dir, dp->d_name);
+    if(!S_ISDIR(st.st_mode)) { 
+      in_file = p_in;
+      out_file = p_out;
+      goto deal_file;
+    }
+    else{
+      //ACTF()
+    }
   }
   else {
     if (!in_file || !out_file){
       usage(argv[0]);
     }
-    deal_file();
+  deal_file:
+    ACTF("start file: %s", in_file);
+    setup_shm();
+    setup_signal_handlers();
+
+    set_up_environment();
+
+    find_binary(argv[optind]);
+    detect_file_args(argv + optind);
+
+    if (qemu_mode)
+      use_argv = get_qemu_argv(argv[0], argv + optind, argc - optind);
+    else
+      use_argv = argv + optind;
+
+    exact_mode = !!getenv("AFL_TMIN_EXACT");
+
+    SAYF("\n");
+
+    read_initial_file();
+
+    ACTF("Performing dry run (mem limit = %llu MB, timeout = %u ms%s)...",
+        mem_limit, exec_tmout, edges_only ? ", edges only" : "");
+
+    run_target(use_argv, in_data, in_len, 1);
+
+    if (child_timed_out)
+      FATAL("Target binary times out (adjusting -t may help).");
+
+    if (!crash_mode) {
+
+      OKF("Program terminates normally, minimizing in " 
+          cCYA "instrumented" cRST " mode.");
+
+      if (!anything_set()) FATAL("No instrumentation detected.");
+
+    } else {
+
+      OKF("Program exits with a signal, minimizing in " cMGN "%scrash" cRST
+          " mode.", exact_mode ? "EXACT " : "");
+
+    }
+
+    minimize(use_argv);
+
+    ACTF("Writing output to '%s'...", out_file);
+
+    unlink(prog_in);
+    prog_in = NULL;
+
+    close(write_to_file(out_file, in_data, in_len));
+
+    if(*dir_mode == '1')
+      goto deal_dir;
   }
-  
-  OKF("We're done here. Have a nice day!\n");
+  finish_tmin:
+  OKF("Finished tmin - Tao\n");
 
   exit(0);
 
 }
-
