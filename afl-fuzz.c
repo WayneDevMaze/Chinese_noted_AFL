@@ -3,9 +3,15 @@ Chinese_noted_afl-fuzz.c
 对源文件添加注释，和自己的个人见解，并随着对其深入不断修正。
 
 fuzz笔记：
-今天有个讲座，是nesa lab的人来讲的，分享他们那边在做的fuzz相关工作：
+今天有个讲座，是nesa lab的来讲的，分享他们那边在做的fuzz相关工作：
 1.在seed方面用机器学习的方式进行；
-2.种子变异策略的选择，不是说所有的变异都合适，有的变异适合某个程序，有的适合另一种程序；https://github.com/puppet-meteor/MOpt-AFL
+2.关于种子变异策略的选择，不是说所有的变异都合适，有的变异适合某个程序，有的适合另一种程序；
+https://github.com/puppet-meteor/MOpt-AFL，
+所以可以通过一种选择方法，不要随机用某一种，而是挑选一种最高效的变异。
+
+关于AFL的想法：
+1.有没有什么方法可以把 mutation-based fuzzing 和 directed fuzzing 相结合，专门针对厂商对高危漏洞的补丁位置进行 fuzz，
+毕竟补丁相对于以前的程序来说是新写的代码，更可能出现漏洞，不像其他旧的部分已经被fuzz过好多遍了；
 
 */
 
