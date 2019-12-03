@@ -225,14 +225,15 @@ static s32 cpu_aff = -1;       	      /* Selected CPU core                */
 
 static FILE* plot_file;               /* Gnuplot output file              */
 
+/* 队列结构体 */
 struct queue_entry {
 
-  u8* fname;                          /* File name for the test case      */
+  u8* fname;                          /* File name for the test case      *//* 测试用例的文件名 */
   u32 len;                            /* Input length                     */
 
   u8  cal_failed,                     /* Calibration failed?              */
       trim_done,                      /* Trimmed?                         */
-      was_fuzzed,                     /* Had any fuzzing done yet?        */
+      was_fuzzed,                     /* Had any fuzzing done yet?        *//* 是否已经经过fuzzing */
       passed_det,                     /* Deterministic stages passed?     */
       has_new_cov,                    /* Triggers new coverage?           */
       var_behavior,                   /* Variable behavior?               */
@@ -249,7 +250,7 @@ struct queue_entry {
   u8* trace_mini;                     /* Trace bytes, if kept             */
   u32 tc_ref;                         /* Trace bytes ref count            */
 
-  struct queue_entry *next,           /* Next element, if any             */
+  struct queue_entry *next,           /* Next element, if any             *//* 队列下一结点 */
                      *next_100;       /* 100 elements ahead               */
 
 };
@@ -8002,7 +8003,7 @@ int main(int argc, char** argv) {
   if (!out_file) setup_stdio_file();
 
   check_binary(argv[optind]);
-
+//开始第一遍dry_run
   start_time = get_cur_time();
 
   if (qemu_mode)
@@ -8011,7 +8012,7 @@ int main(int argc, char** argv) {
     use_argv = argv + optind;
 
   perform_dry_run(use_argv);
-
+//开始真正的fuzz
   cull_queue();
 
   show_init_stats();
