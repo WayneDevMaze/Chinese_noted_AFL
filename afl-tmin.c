@@ -50,7 +50,7 @@ static u8 *in_file,                   /* Minimizer input test case         */
 
 static u8 *in_dir,                    /* Minimizer input direction         */
           *out_dir;                   /* Minimizer output direction        */
-static u8 *dir_mode;                  /* dir mode : 1(yes) / 0(no)         */
+static u8 *dir_mode = 0;              /* dir mode : 1(yes) / 0(no)         */
 
 static u8* in_data;                   /* Input data for trimming           */
 
@@ -963,6 +963,8 @@ static void read_bitmap(u8* fname) {
 
 int main(int argc, char** argv) {
 
+  //dir_mode = '0';
+
   s32 opt;
   u8  mem_limit_given = 0, timeout_given = 0, qemu_mode = 0;
   char** use_argv;
@@ -983,7 +985,7 @@ int main(int argc, char** argv) {
 
       case 'i':
 
-        if (in_file) FATAL("Multiple -i options not supported");
+        if (in_file || in_dir) FATAL("Multiple -i options not supported");
         if (*dir_mode == '1')
           in_dir = optarg;
         else
@@ -992,7 +994,7 @@ int main(int argc, char** argv) {
 
       case 'o':
 
-        if (out_file) FATAL("Multiple -o options not supported");
+        if (out_file || out_dir) FATAL("Multiple -o options not supported");
         if (*dir_mode == '1')
           out_dir = optarg;
         else

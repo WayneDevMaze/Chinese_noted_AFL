@@ -59,7 +59,7 @@
 
 这三个都需要查看源码，对后续查看、按需修改 **afl源码** 一定都会很有帮助。  
 
-----------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------
 
 
 ## **Ⅱ、预备工作：预处理、变量、结构体**  
@@ -142,8 +142,9 @@ struct queue_entry {
 #### 4.枚举
 枚举类型的好处是可读性强，易于使用，作者定义了三部分枚举类型，用来表示自己想要展现的状态。*具体用法会分析后举例说明*:
 
-1. Fuzzing 的状态，比如有地方的用一个数组，需要区分01234···序列代表的含义，就可以用这个代替。这里涉及了很多种不同的 fuzz 种子变异策略，1为转换到32位转换等···
+1. Fuzzing 的状态，比如有地方的用一个数组，需要区分01234···序列代表的含义，就可以用这个代替。这里涉及了很多种不同的 fuzz 种子变异策略
 >```c
+>/* Fuzzing stages */
 >enum {
 >  /* 00 */ STAGE_FLIP1,
 >  /* 01 */ STAGE_FLIP2,
@@ -164,7 +165,50 @@ struct queue_entry {
 >  /* 16 */ STAGE_SPLICE
 >};
 >```
-比如 `DI(stage_finds[STAGE_FLIP1]), DI(stage_cycles[STAGE_FLIP1]),`其中 **`stage_finds`** 的定义`static u64 stage_finds[32]`是一个大数组，用来保存不同的fuzz stage状态下 **`【?】模式发现【?】待补`**  
+比如 `DI(stage_finds[STAGE_FLIP1]), DI(stage_cycles[STAGE_FLIP1]),`其中 **`stage_finds`** 的定义`static u64 stage_finds[32]`是一个大数组，用来保存不同的 `fuzz stage` 状态下的模式发现。  
+
+>**`#文件变异[可以先略过，回头再看]`**  
+>
+>正好这里涉及了对输入文件的变异策略，可以单独先提一下。在AFL的fuzz过程中，维护了一个 testcase 队列，每次把队列里的文件取出来之后，对其进行变异，下面就讲一下各个阶段的变异是怎样的。
+>### 【1】**`bitflip`**，位反转，顾名思义按位进行翻转，0变1，1变0。  
+>  
+>>`STAGE_FLIP1` 每次翻转一位(`1 bit`)，按一位步长从头开始。  
+>>`STAGE_FLIP2` 每次翻转相邻两位(`2 bit`)，按一位步长从头开始。 
+>>`STAGE_FLIP4` 每次翻转相邻四位(`4 bit`)，按一位步长从头开始。 
+>>`STAGE_FLIP8` 每次翻转相邻八位(`8 bit`)，按八位步长从头开始，也就是说，每次对一个byte做翻转变化。 
+>>`STAGE_FLIP16`每次翻转相邻十六位(`16 bit`)，按八位步长从头开始，每次对一个word做翻转变化。   
+>>`STAGE_FLIP32`每次翻转相邻三十二位(`32 bit`)，按八位步长从头开始，每次对一个dword做翻转变化。  
+>
+>这一部分在 `5135` 行的 `#define FLIP_BIT(_ar, _b) do {***}` 有详细的代码实现。  
+>#### <`token` - 自动检测>
+>源码中有一段关于这部分的注释，意思是说在进行为翻转的时候，程序会随时注意翻转之后的变化。比如说，对于一段 `xxxxxxxxIHDRxxxxxxxx` 的文件字符串，当改变 `IHDR` 任意一个都会导致奇怪的变化，这个时候，程序就会认为 `IHDR` 是一个可以让fuzzer很激动的“神仙值”--token，
+>```c
+>    /* While flipping the least significant bit in every byte, pull of an extra trick to detect possible syntax tokens. In essence, the idea is that if you have a binary blob like this:
+>       xxxxxxxxIHDRxxxxxxxx
+>      ...and changing the leading and trailing bytes causes variable or no changes in program flow, but touching any character in the "IHDR" string always produces the same, distinctive path, it's highly likely that "IHDR" is an atomically-checked magic value of special significance to the fuzzed format.
+>      We do this here, rather than as a separate stage, because it's a nice way to keep the operation approximately "free" (i.e., no extra execs).
+>       Empirically, performing the check when flipping the least significant bit is advantageous, compared to doing it at the time of more disruptive changes, where the program flow may be affected in more violent ways.
+>       The caveat is that we won't generate dictionaries in the -d mode or -S mode - but that's probably a fair trade-off.
+>       This won't work particularly well with paths that exhibit variable behavior, but fails gracefully, so we'll carry out the checks anyway.
+>      */
+>```  
+>#### <`effector map` - 生成>  
+>  
+>### 【2】**`arithmetic`**，算术，实际操作就是加加减减。 
+>  
+>>  
+>    
+>### 【3】**`interest`**，把一些“有意思”的特殊内容替换到原文件中。  
+>  
+>> 
+>   
+>### 【4】**`distionary`**，字典，会把自动生成或者用户提供的token替换、插入到原文件中。
+>    
+>>  
+>   
+>### 【5】**`havoc`**，“大破坏”，对原文件进行大量变异。  
+>>  
+>### 【6】**`splice`**，“拼接”，两个文件拼接到一起得到一个新文件。  
 
 2. 状态的值类型，这里是用来辅助、修饰上一个枚举fuzzing状态的，用来识别当前的状态枚举对应变异方式的类型
 >```c
@@ -191,27 +235,72 @@ struct queue_entry {
 这部分最重要的是对于全局变量四部分的理解，afl-fuzz.c文件最常用的变量都在这里面了，特别是测试用例的队列、枚举代表的含义。  
 
 
-------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------
 
 
 ## **Ⅲ、fuzzing 的整体结构**
 后面的代码就是真正的 `afl fuzz` 过程代码，在开始分析详细的代码之前，需要从整体结构上了解掌握 **afl-fuzz.c** 的主要流程，这也是师兄给的主要任务。这里先不管 `main` 函数之前的函数是怎么实现原理的，先就通过 `main` 函数的分析，结合各函数的原注释进行主要流程分析。  
-### 【一】设置 `main` 函数内的局部变量  
+### 【一】设置 `main` 函数内的变量  
+设置各种main函数需要的主要局部变量，一部分跟要调用函数的参数有关，一部分跟main函数主体相关。
+```c
+  s32 opt;
+  u64 prev_queued = 0;
+  u32 sync_interval_cnt = 0, seek_to;
+  u8  *extras_dir = 0;
+  u8  mem_limit_given = 0;
+  u8  exit_1 = !!getenv("AFL_BENCH_JUST_ONE");
+  char** use_argv;
 
+  struct timeval tv;
+  struct timezone tz;
+
+  SAYF(cCYA "afl-fuzz " cBRI VERSION cRST " by <lcamtuf@google.com>\n");
+
+  doc_path = access(DOC_PATH, F_OK) ? "docs" : DOC_PATH;
+
+  gettimeofday(&tv, &tz);
+  srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
+```
+这部分的设置变量，主要是main内使用，跟之外的都无关系，魔改的时候要注意这里。  
 ### 【二】while循环读取来自命令行的参数输入  
+>`while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)`  
+
+while的判断条件是“命令行”里是否还有输入的参数，while内的命令判断是通过 **`switch - case`** 实现的：  
+>i:输入文件夹，包含所有的测试用例 testcase  
+>o:输出文件夹，用来存储所有的中间结果和最终结果  
+>M:   
+>S:  
+>f:  
+>x:  
+>t:   
+>m:  
+>d:  
+>B:  
+>C:  
+>n:  
+>T:  
+>Q:
+>default: 如果输入错误，提示使用手册（当进行魔改的时候，可以在这个函数 `usage(argv[0]);` 里进行修改）  
 
 ### 【三】环境设置和检查，为fuzz做准备  
+设置信号句柄，  
 
 ### 【四】开始第一遍fuzz  
 
+
 ### 【五】开始真正的fuzz
+
 
 ### 【六】结束fuzz的后处理
 
 
-----------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------
 
 
-## **函数**
-***
+## **关键函数实现原理**
+
+
+--------------------------------------------------------------
+
+
 ## **main函数**
