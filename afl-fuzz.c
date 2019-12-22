@@ -12,7 +12,8 @@ https://github.com/puppet-meteor/MOpt-AFL，
 关于AFL的想法：
 1.有没有什么方法可以把 mutation-based fuzzing 和 directed fuzzing 相结合，专门针对厂商对高危漏洞的补丁位置进行 fuzz，
 毕竟补丁相对于以前的程序来说是新写的代码，更可能出现漏洞，不像其他旧的部分已经被fuzz过好多遍了；
-
+2.专门针对一种或者说一类特征明显的漏洞进行挖掘，比如堆利用漏洞。
+3.其实有一点搞不懂，为什么要用goto语句，如果把goto去掉，是不是能提高代码效率。
 */
 
 /*
