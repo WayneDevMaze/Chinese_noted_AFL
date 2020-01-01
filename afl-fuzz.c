@@ -3712,7 +3712,6 @@ static void maybe_delete_out_dir(void) {
 
       //发现文件夹有价值，又不舍得删，就备份一下，跟cmin思路相同
       //
-      old_out_dir = null;
       if (old_out_dir = alloc_printf("%s_old", out_dir))
       {
         rename(out_dir, old_out_dir);
