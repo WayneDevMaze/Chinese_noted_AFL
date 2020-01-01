@@ -219,12 +219,12 @@ rmdir "$OUT_DIR" 2>/dev/null
 
 #  修改文件夹操作，如果文件夹不空，则移到另一个文件夹 2019年12月2日
 if [ -d "$OUT_DIR" ]; then
-  echo "[x] DELETE : directory '$OUT_DIR' exists and is not empty - we will copy them to another dir 'old_$OUT_DIR'" 1>&2
+  echo "[x] DELETE : directory '$OUT_DIR' exists and is not empty - we will copy them to another dir '$OUT_DIR_old'" 1>&2
 #  exit 1
-  if [ -d "old_$OUT_DIR" ];then
-    rm -rf old_$OUT_DIR
+  if [ -d "'$OUT_DIR'_old" ];then
+    rm -rf '$OUT_DIR'_old
   fi
-  mv $OUT_DIR old_$OUT_DIR
+  mv $OUT_DIR '$OUT_DIR'_old
   echo "[√] Create new Direction. (there is no such dir: '$OUT_DIR')"
   mkdir $OUT_DIR
 else

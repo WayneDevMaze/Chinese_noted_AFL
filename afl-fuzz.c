@@ -13,7 +13,12 @@ https://github.com/puppet-meteor/MOpt-AFL，
 1.有没有什么方法可以把 mutation-based fuzzing 和 directed fuzzing 相结合，专门针对厂商对高危漏洞的补丁位置进行 fuzz，
 毕竟补丁相对于以前的程序来说是新写的代码，更可能出现漏洞，不像其他旧的部分已经被fuzz过好多遍了；
 2.专门针对一种或者说一类特征明显的漏洞进行挖掘，比如堆利用漏洞。
-3.其实有一点搞不懂，为什么要用goto语句，如果把goto去掉，是不是能提高代码效率。
+3.其实有一点搞不懂，为什么要用goto语句，如果把goto去掉，是不是能提高代码效率。//可以，但没必要，这样做只是程序效率的提升，不是fuzzing过程的提升
+
+
+改造：
+1.out文件夹，进行跟 cmin 相同的一些操作，当afl觉得文件夹有价值的时候，程序停止，我觉得应该继续，当然文件会先保存下来，而且这样也便于后续操作；
+
 */
 
 /*
@@ -92,6 +97,7 @@ EXP_ST u8 *in_dir,                    /* Input directory with test cases  *//* �
           *doc_path,                  /* Path to documentation dir        *//**/
           *target_path,               /* Path to target binary            *//**/
           *orig_cmdline;              /* Original command line            *//**/
+          *old_out_dir;               /* 当出现 out 文件夹比较有用时旧的文件保存 */
 
 EXP_ST u32 exec_tmout = EXEC_TIMEOUT; /* Configurable exec timeout (ms)   */
 static u32 hang_tmout = EXEC_TIMEOUT; /* Timeout used for hang det (ms)   */
@@ -3704,8 +3710,19 @@ static void maybe_delete_out_dir(void) {
            "    session, put '-' as the input directory in the command line ('-i -') and\n"
            "    try again.\n", OUTPUT_GRACE);
 
-       FATAL("At-risk data found in '%s'", out_dir);
-
+      //发现文件夹有价值，又不舍得删，就备份一下，跟cmin思路相同
+      //
+      old_out_dir = null;
+      if (old_out_dir = alloc_printf("%s_old", out_dir))
+      {
+        rename(out_dir, old_out_dir);
+        mkdir(out_dir, 0700);
+        OKF("Success to create old_file_dir and move valuable files in it.");
+      }
+      else{
+        OKF("Fail to move file!!!");
+        FATAL("At-risk data found in '%s'", out_dir);
+      }
     }
 
   }
@@ -7113,7 +7130,6 @@ static void usage(u8* argv0) {
 /* Prepare output directories and fds. */
 
 EXP_ST void setup_dirs_fds(void) {
-
   u8* tmp;
   s32 fd;
 
