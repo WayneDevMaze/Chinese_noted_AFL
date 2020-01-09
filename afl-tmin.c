@@ -3,9 +3,9 @@
   2019年11月30日
   添加文件夹功能，可以对整个文件夹进行操作：在最开始加入 -d 参数（1 代表以文件夹模式输入，0 代表文件模式输入）
   //年前任务
-  1. 加入递归修改全部文件，包括文件夹
-  2. 为 -d 参数如果不加，实现自动补充为 0，提高鲁棒性
-  3. 参数的位置是不是可以通过代码进行自动排序，按照一定顺序，这样用工具的人就可以按随意顺序书写指令了
+  1. 加入递归修改全部文件，包括文件夹 //2020年1月9日
+  2. 为 -d 参数如果不加，实现自动补充为 0，提高鲁棒性 //fixed
+  3. 参数的位置是不是可以通过代码进行自动排序，按照一定顺序，这样用工具的人就可以按随意顺序书写指令了，跟switch的耦合性相关 //fixed
 */
 /*
   Copyright 2015 Google LLC All rights reserved.
@@ -959,6 +959,117 @@ static void read_bitmap(u8* fname) {
 
 }
 
+/* recurrency deal direction */
+
+static void recurrency_deal_dir(u8* input_dir, u8* output_dir,int argc, char** argv, u8 qemu_mode){
+  
+  char** use_argv;
+
+  if (*dir_mode == '1'){
+    if ( !input_dir || !output_dir){
+      usage(argv[0]);
+    }
+    /* 读取文件夹下的所有文件，每个文件进行操作，在输出文件夹生成相应的文件【暂时不递归文件夹下面的文件】 */
+    /* 利用loop实现全部文件循环读取 */
+    DIR *d = NULL;
+    struct dirent *dp = NULL;
+    struct stat st;
+    char p_in[256] = {0};
+    char p_out[256] = {0};
+
+    //检查路径合理性
+    if((!(d=opendir(input_dir))) || stat(input_dir, &st) < 0 || !S_ISDIR(st.st_mode)){
+      ACTF("invalid path:%s\n", input_dir);
+      return;
+    }
+  deal_dir:
+    if((dp = readdir(d)) == NULL){
+      closedir(d);
+      return;
+    }
+    //当前路径和上一级路径以及隐藏文件去掉，避免死循环
+    if ((!strncmp(dp->d_name, ".", 1)) || (!strncmp(dp->d_name, "..", 2)))
+      goto deal_dir;
+
+    snprintf(p_in, sizeof(p_in) - 1, "%s/%s", input_dir, dp->d_name);
+    stat(p_in, &st);
+    snprintf(p_out, sizeof(p_out) - 1, "%s/%s", output_dir, dp->d_name);
+    if(!S_ISDIR(st.st_mode)) { 
+      in_file = p_in;
+      out_file = p_out;
+      goto deal_file;
+    }
+    else{
+      //是文件夹下面的文件也是文件夹的话，在此操作留作递归操作
+      u8 *temp_input_dir, *temp_output_dir;
+      temp_input_dir = p_in;
+      temp_output_dir = p_out;
+      mkdir(temp_output_dir, 0700);
+      recurrency_deal_dir(temp_input_dir, temp_output_dir, argc, argv, qemu_mode);
+      goto deal_dir;
+    }
+  }
+  else {
+    if (!in_file || !out_file){
+      usage(argv[0]);
+    }
+  deal_file:
+    ACTF("start file: %s", in_file);
+    setup_shm();
+    setup_signal_handlers();
+
+    set_up_environment();
+
+    find_binary(argv[optind]);
+    detect_file_args(argv + optind);
+
+    if (qemu_mode)
+      use_argv = get_qemu_argv(argv[0], argv + optind, argc - optind);
+    else
+      use_argv = argv + optind;
+
+    exact_mode = !!getenv("AFL_TMIN_EXACT");
+
+    SAYF("\n");
+
+    read_initial_file();
+
+    ACTF("Performing dry run (mem limit = %llu MB, timeout = %u ms%s)...",
+        mem_limit, exec_tmout, edges_only ? ", edges only" : "");
+
+    run_target(use_argv, in_data, in_len, 1);
+
+    if (child_timed_out)
+      FATAL("Target binary times out (adjusting -t may help).");
+
+    if (!crash_mode) {
+
+      OKF("Program terminates normally, minimizing in " 
+          cCYA "instrumented" cRST " mode.");
+
+      if (!anything_set()) FATAL("No instrumentation detected.");
+
+    } else {
+
+      OKF("Program exits with a signal, minimizing in " cMGN "%scrash" cRST
+          " mode.", exact_mode ? "EXACT " : "");
+
+    }
+
+    minimize(use_argv);
+
+    ACTF("Writing output to '%s'...", out_file);
+
+    unlink(prog_in);
+    prog_in = NULL;
+
+    close(write_to_file(out_file, in_data, in_len));
+
+    if(*dir_mode == '1')
+      goto deal_dir;
+  }
+}
+
 /* Main entry point */
 
 int main(int argc, char** argv) {
@@ -967,7 +1078,6 @@ int main(int argc, char** argv) {
 
   s32 opt;
   u8  mem_limit_given = 0, timeout_given = 0, qemu_mode = 0;
-  char** use_argv;
 
   doc_path = access(DOC_PATH, F_OK) ? "docs" : DOC_PATH;
 
@@ -986,19 +1096,15 @@ int main(int argc, char** argv) {
       case 'i':
 
         if (in_file || in_dir) FATAL("Multiple -i options not supported");
-        if (*dir_mode == '1')
-          in_dir = optarg;
-        else
-          in_file = optarg;
+        in_dir = optarg;
+        in_file = optarg;
         break;
 
       case 'o':
 
         if (out_file || out_dir) FATAL("Multiple -o options not supported");
-        if (*dir_mode == '1')
-          out_dir = optarg;
-        else
-          out_file = optarg;
+        out_dir = optarg;
+        out_file = optarg;
         break;
 
       case 'f':
@@ -1105,104 +1211,8 @@ int main(int argc, char** argv) {
   /* 初步检查参数合法性 */
   if (optind == argc) usage(argv[0]);
 
-  if (*dir_mode == '1'){
-    if ( !in_dir || !out_dir){
-      usage(argv[0]);
-    }
-    /* 读取文件夹下的所有文件，每个文件进行操作，在输出文件夹生成相应的文件【暂时不递归文件夹下面的文件】 */
-    /* 利用loop实现全部文件循环读取 */
-    DIR *d = NULL;
-    struct dirent *dp = NULL;
-    struct stat st;
-    char p_in[256] = {0};
-    char p_out[256] = {0};
+  recurrency_deal_dir(in_dir, out_dir, argc, argv, qemu_mode);
 
-    //检查路径合理性
-    if((!(d=opendir(in_dir))) || stat(in_dir, &st) < 0 || !S_ISDIR(st.st_mode)){
-      ACTF("invalid path:%s\n", in_dir);
-      goto finish_tmin;
-    }
-    deal_dir:
-    if((dp = readdir(d)) == NULL){
-      closedir(d);
-      goto finish_tmin;
-    }
-    //当前路径和上一级路径以及隐藏文件去掉，避免死循环
-    if ((!strncmp(dp->d_name, ".", 1)) || (!strncmp(dp->d_name, "..", 2)))
-      goto deal_dir;
-
-    snprintf(p_in, sizeof(p_in) - 1, "%s/%s", in_dir, dp->d_name);
-    stat(p_in, &st);
-    snprintf(p_out, sizeof(p_out) - 1, "%s/%s", out_dir, dp->d_name);
-    if(!S_ISDIR(st.st_mode)) { 
-      in_file = p_in;
-      out_file = p_out;
-      goto deal_file;
-    }
-    else{
-      //是文件夹下面的文件也是文件夹的话，在此操作留作递归操作
-    }
-  }
-  else {
-    if (!in_file || !out_file){
-      usage(argv[0]);
-    }
-  deal_file:
-    ACTF("start file: %s", in_file);
-    setup_shm();
-    setup_signal_handlers();
-
-    set_up_environment();
-
-    find_binary(argv[optind]);
-    detect_file_args(argv + optind);
-
-    if (qemu_mode)
-      use_argv = get_qemu_argv(argv[0], argv + optind, argc - optind);
-    else
-      use_argv = argv + optind;
-
-    exact_mode = !!getenv("AFL_TMIN_EXACT");
-
-    SAYF("\n");
-
-    read_initial_file();
-
-    ACTF("Performing dry run (mem limit = %llu MB, timeout = %u ms%s)...",
-        mem_limit, exec_tmout, edges_only ? ", edges only" : "");
-
-    run_target(use_argv, in_data, in_len, 1);
-
-    if (child_timed_out)
-      FATAL("Target binary times out (adjusting -t may help).");
-
-    if (!crash_mode) {
-
-      OKF("Program terminates normally, minimizing in " 
-          cCYA "instrumented" cRST " mode.");
-
-      if (!anything_set()) FATAL("No instrumentation detected.");
-
-    } else {
-
-      OKF("Program exits with a signal, minimizing in " cMGN "%scrash" cRST
-          " mode.", exact_mode ? "EXACT " : "");
-
-    }
-
-    minimize(use_argv);
-
-    ACTF("Writing output to '%s'...", out_file);
-
-    unlink(prog_in);
-    prog_in = NULL;
-
-    close(write_to_file(out_file, in_data, in_len));
-
-    if(*dir_mode == '1')
-      goto deal_dir;
-  }
-  finish_tmin:
   OKF("Finished tmin - Tao\n");
 
   exit(0);
