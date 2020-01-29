@@ -403,7 +403,7 @@ static void shuffle_ptrs(void** ptrs, u32 cnt) {
 
 /* Build a list of processes bound to specific cores. Returns -1 if nothing
    can be found. Assumes an upper bound of 4k CPUs. */
-
+//尝试绑定空闲的cpu
 static void bind_to_free_cpu(void) {
 
   DIR* d;
@@ -500,7 +500,7 @@ static void bind_to_free_cpu(void) {
     FATAL("No more free CPU cores");
 
   }
-
+//获取空闲的cpu，尝试绑定
   OKF("Found a free CPU core, binding to #%u.", i);
 
   cpu_aff = i;
@@ -1137,7 +1137,7 @@ static const u8 count_class_lookup8[256] = {
 
 static u16 count_class_lookup16[65536];
 
-
+//对应每一条边的执行次数
 EXP_ST void init_count_class16(void) {
 
   u32 b1, b2;
@@ -1352,10 +1352,11 @@ static void cull_queue(void) {
 EXP_ST void setup_shm(void) {
 
   u8* shm_str;
-
+//所有的覆盖状态
   if (!in_bitmap) memset(virgin_bits, 255, MAP_SIZE);
-
+//time out的覆盖状态
   memset(virgin_tmout, 255, MAP_SIZE);
+//crash的覆盖状态
   memset(virgin_crash, 255, MAP_SIZE);
 
   shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
@@ -1374,7 +1375,7 @@ EXP_ST void setup_shm(void) {
   if (!dumb_mode) setenv(SHM_ENV_VAR, shm_str, 1);
 
   ck_free(shm_str);
-
+//记录一次fuzz的状态，通过共享内存实现相互追踪
   trace_bits = shmat(shm_id, NULL, 0);
   
   if (!trace_bits) PFATAL("shmat() failed");
@@ -1383,7 +1384,7 @@ EXP_ST void setup_shm(void) {
 
 
 /* Load postprocessor, if available. */
-
+//
 static void setup_post(void) {
 
   void* dh;
@@ -1401,7 +1402,7 @@ static void setup_post(void) {
   if (!post_handler) FATAL("Symbol 'afl_postprocess' not found.");
 
   /* Do a quick test. It's better to segfault now than later =) */
-
+//测试
   post_handler("hello", &tlen);
 
   OKF("Postprocessor installed successfully.");
@@ -1411,7 +1412,7 @@ static void setup_post(void) {
 
 /* Read all testcases from the input directory, then queue them for testing.
    Called at startup. */
-
+//in文件夹相关的
 static void read_testcases(void) {
 
   struct dirent **nl;
@@ -1476,7 +1477,7 @@ static void read_testcases(void) {
       continue;
 
     }
-
+//种子不要大于 1M
     if (st.st_size > MAX_FILE) 
       FATAL("Test case '%s' is too big (%s, limit is %s)", fn,
             DMS(st.st_size), DMS(MAX_FILE));
@@ -1488,7 +1489,7 @@ static void read_testcases(void) {
 
     if (!access(dfn, F_OK)) passed_det = 1;
     ck_free(dfn);
-
+//对种子信息初始化，加入队列
     add_to_queue(fn, st.st_size, passed_det);
 
   }
@@ -1914,7 +1915,7 @@ static void save_auto(void) {
 
 
 /* Load automatically generated extras. */
-
+//加载自动生成的字典，token使用次数越多，排名越前
 static void load_auto(void) {
 
   u32 i;
@@ -1941,7 +1942,7 @@ static void load_auto(void) {
     len = read(fd, tmp, MAX_AUTO_EXTRA + 1);
 
     if (len < 0) PFATAL("Unable to read from '%s'", fn);
-
+//token越短，排名越前
     if (len >= MIN_AUTO_EXTRA && len <= MAX_AUTO_EXTRA)
       maybe_add_auto(tmp, len);
 
@@ -1982,10 +1983,11 @@ static void destroy_extras(void) {
    In essence, the instrumentation allows us to skip execve(), and just keep
    cloning a stopped child. So, we just execute once, and then send commands
    through a pipe. The other part of this logic is in afl-as.h. */
-
+//进程管道
 EXP_ST void init_forkserver(char** argv) {
 
   static struct itimerval it;
+  //读取目标进程的退出状态；记录子进程
   int st_pipe[2], ctl_pipe[2];
   int status;
   s32 rlen;
@@ -1993,7 +1995,7 @@ EXP_ST void init_forkserver(char** argv) {
   ACTF("Spinning up the fork server...");
 
   if (pipe(st_pipe) || pipe(ctl_pipe)) PFATAL("pipe() failed");
-
+//fork一个子进程
   forksrv_pid = fork();
 
   if (forksrv_pid < 0) PFATAL("fork() failed");
@@ -2548,7 +2550,7 @@ static void show_stats(void);
 /* Calibrate a new test case. This is done when processing the input directory
    to warn about flaky or otherwise problematic test cases early on; and when
    new paths are discovered to detect variable behavior and so on. */
-
+//对种子进行校准
 static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
                          u32 handicap, u8 from_queue) {
 
@@ -2574,11 +2576,12 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   q->cal_failed++;
 
   stage_name = "calibration";
+  //设置校验次数；默认是8，可以设置成3
   stage_max  = fast_cal ? 3 : CAL_CYCLES;
 
   /* Make sure the forkserver is up before we do anything, and let's not
      count its spin-up time toward binary calibration. */
-
+//fork server初始化处理
   if (dumb_mode != 1 && !no_forkserver && !forksrv_pid)
     init_forkserver(argv);
 
@@ -2591,25 +2594,25 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
     u32 cksum;
 
     if (!first_run && !(stage_cur % stats_update_freq)) show_stats();
-
+//写例子
     write_to_testcase(use_mem, q->len);
 
     fault = run_target(argv, use_tmout);
 
     /* stop_soon is set by the handler for Ctrl+C. When it's pressed,
        we want to bail out quickly. */
-
+//如果执行失败，种子校准置空
     if (stop_soon || fault != crash_mode) goto abort_calibration;
 
     if (!dumb_mode && !stage_cur && !count_bytes(trace_bits)) {
       fault = FAULT_NOINST;
       goto abort_calibration;
     }
-
+//执行状态 校验和
     cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
 
     if (q->exec_cksum != cksum) {
-
+//检查是否有新的覆盖状态
       u8 hnb = has_new_bits(virgin_bits);
       if (hnb > new_bits) new_bits = hnb;
 
@@ -2640,7 +2643,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
     }
 
   }
-
+//计算累积校验状态
   stop_us = get_cur_time_us();
 
   total_cal_us     += stop_us - start_us;
@@ -2650,13 +2653,13 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
      This is used for fuzzing air time calculations in calculate_score(). */
 
   q->exec_us     = (stop_us - start_us) / stage_max;
-  q->bitmap_size = count_bytes(trace_bits);
-  q->handicap    = handicap;
-  q->cal_failed  = 0;
+  q->bitmap_size = count_bytes(trace_bits);//命中的边的次数
+  q->handicap    = handicap;//种子执行了几轮
+  q->cal_failed  = 0;//总校验数
 
   total_bitmap_size += q->bitmap_size;
   total_bitmap_entries++;
-
+//更新q的分数（更新优先选择队列）
   update_bitmap_score(q);
 
   /* If this case didn't result in new output from the instrumentation, tell
@@ -2666,7 +2669,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   if (!dumb_mode && first_run && !fault && !new_bits) fault = FAULT_NOBITS;
 
 abort_calibration:
-
+//是否产生新的路径
   if (new_bits == 2 && !q->has_new_cov) {
     q->has_new_cov = 1;
     queued_with_cov++;
@@ -2740,7 +2743,7 @@ static void perform_dry_run(char** argv) {
       FATAL("Short read from '%s'", q->fname);
 
     close(fd);
-
+//对种子进行校准
     res = calibrate_case(argv, q, use_mem, 0, 1);
     ck_free(use_mem);
 
@@ -2751,7 +2754,7 @@ static void perform_dry_run(char** argv) {
            q->len, q->bitmap_size, q->exec_us);
 
     switch (res) {
-
+//什么都没有的情况
       case FAULT_NONE:
 
         if (q == queue) check_map_coverage();
@@ -2759,7 +2762,7 @@ static void perform_dry_run(char** argv) {
         if (crash_mode) FATAL("Test case '%s' does *NOT* crash", fn);
 
         break;
-
+//超时的情况
       case FAULT_TMOUT:
 
         if (timeout_given) {
@@ -2798,7 +2801,7 @@ static void perform_dry_run(char** argv) {
           FATAL("Test case '%s' results in a timeout", fn);
 
         }
-
+//产生crash
       case FAULT_CRASH:  
 
         if (crash_mode) break;
@@ -3134,7 +3137,8 @@ static void write_crash_readme(void) {
 /* Check if the result of an execve() during routine fuzzing is interesting,
    save or queue the input test case for further analysis if so. Returns 1 if
    entry is saved, 0 otherwise. */
-
+//是否新路径 && 是否新类型（之前的分类）
+//评分：更快的时间、更小的存储大小
 static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
   u8  *fn = "";
@@ -4558,7 +4562,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
       if (stop_soon || fault == FAULT_ERROR) goto abort_trimming;
 
       /* Note that we don't keep track of crashes or hangs here; maybe TODO? */
-
+//校验和，判断修剪 是否有用
       cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
 
       /* If the deletion had no impact on the trace, make it permanent. This
@@ -4727,17 +4731,17 @@ static u32 choose_block_len(u32 limit) {
 /* Calculate case desirability score to adjust the length of havoc fuzzing.
    A helper function for fuzz_one(). Maybe some of these constants should
    go into config.h. */
-
+//分数计算
 static u32 calculate_score(struct queue_entry* q) {
 
   u32 avg_exec_us = total_cal_us / total_cal_cycles;
   u32 avg_bitmap_size = total_bitmap_size / total_bitmap_entries;
-  u32 perf_score = 100;
+  u32 perf_score = 100;//满分
 
   /* Adjust score based on execution speed of this path, compared to the
      global average. Multiplier ranges from 0.1x to 3x. Fast inputs are
      less expensive to fuzz, so we're giving them more air time. */
-
+//执行时间
   if (q->exec_us * 0.1 > avg_exec_us) perf_score = 10;
   else if (q->exec_us * 0.25 > avg_exec_us) perf_score = 25;
   else if (q->exec_us * 0.5 > avg_exec_us) perf_score = 50;
@@ -4748,7 +4752,7 @@ static u32 calculate_score(struct queue_entry* q) {
 
   /* Adjust score based on bitmap size. The working theory is that better
      coverage translates to better targets. Multiplier from 0.25x to 3x. */
-
+//命中的分支数
   if (q->bitmap_size * 0.3 > avg_bitmap_size) perf_score *= 3;
   else if (q->bitmap_size * 0.5 > avg_bitmap_size) perf_score *= 2;
   else if (q->bitmap_size * 0.75 > avg_bitmap_size) perf_score *= 1.5;
@@ -4759,7 +4763,7 @@ static u32 calculate_score(struct queue_entry* q) {
   /* Adjust score based on handicap. Handicap is proportional to how late
      in the game we learned about this path. Latecomers are allowed to run
      for a bit longer until they catch up with the rest. */
-
+//经过fuzz的论数，轮数越多，排名越高
   if (q->handicap >= 4) {
 
     perf_score *= 4;
@@ -4775,7 +4779,7 @@ static u32 calculate_score(struct queue_entry* q) {
   /* Final adjustment based on input depth, under the assumption that fuzzing
      deeper test cases is more likely to reveal stuff that can't be
      discovered with traditional fuzzers. */
-
+//队列的深度
   switch (q->depth) {
 
     case 0 ... 3:   break;
@@ -5020,7 +5024,7 @@ static u8 fuzz_one(char** argv) {
     /* Otherwise, still possibly skip non-favored cases, albeit less often.
        The odds of skipping stuff are higher for already-fuzzed inputs and
        lower for never-fuzzed entries. */
-
+//计算概率，种子会不会被跳过
     if (queue_cycle > 1 && !queue_cur->was_fuzzed) {
 
       if (UR(100) < SKIP_NFAV_NEW_PROB) return 1;
@@ -5068,7 +5072,10 @@ static u8 fuzz_one(char** argv) {
   /*******************************************
    * CALIBRATION (only if failed earlier on) *
    *******************************************/
-
+//看看失败的情况
+//1.就是校准失败
+//2.time out
+//3.
   if (queue_cur->cal_failed) {
 
     u8 res = FAULT_TMOUT;
@@ -5092,7 +5099,7 @@ static u8 fuzz_one(char** argv) {
   /************
    * TRIMMING *
    ************/
-
+//对种子大小进行修剪
   if (!dumb_mode && !queue_cur->trim_done) {
 
     u8 res = trim_case(argv, queue_cur, in_buf);
@@ -5118,13 +5125,14 @@ static u8 fuzz_one(char** argv) {
   /*********************
    * PERFORMANCE SCORE *
    *********************/
-
+//分数 计算；对分数的计算（比如上下文敏感的情况，可以在里面调整分数的计算机制）
+//“分数计算”的函数论文中用到比较多
   orig_perf = perf_score = calculate_score(queue_cur);
 
   /* Skip right away if -d is given, if we have done deterministic fuzzing on
      this entry ourselves (was_fuzzed), or if it has gone through deterministic
      testing in earlier, resumed runs (passed_det). */
-
+//如果已经经过了确定性变异（也就是bit、ari、int、dic的确定性变异）
   if (skip_deterministic || queue_cur->was_fuzzed || queue_cur->passed_det)
     goto havoc_stage;
 
@@ -5135,11 +5143,14 @@ static u8 fuzz_one(char** argv) {
     goto havoc_stage;
 
   doing_det = 1;
-
+//**********************
+//种子变异开始！！！
+//**********************
   /*********************************************
    * SIMPLE BITFLIP (+dictionary construction) *
    *********************************************/
-
+//位翻转（同时会有自动的字典生成【tokens】）
+//定义位翻转的函数宏定义
 #define FLIP_BIT(_ar, _b) do { \
     u8* _arf = (u8*)(_ar); \
     u32 _bf = (_b); \
@@ -5194,7 +5205,7 @@ static u8 fuzz_one(char** argv) {
        behavior, but fails gracefully, so we'll carry out the checks anyway.
 
       */
-
+//怎么选择token，加到自动的字典里
     if (!dumb_mode && (stage_cur & 7) == 7) {
 
       u32 cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
@@ -5393,7 +5404,7 @@ static u8 fuzz_one(char** argv) {
   stage_cycles[STAGE_FLIP8] += stage_max;
 
   /* Two walking bytes. */
-
+//两字节
   if (len < 2) goto skip_bitflip;
 
   stage_name  = "bitflip 16/8";
@@ -5472,7 +5483,7 @@ skip_bitflip:
   /**********************
    * ARITHMETIC INC/DEC *
    **********************/
-
+//算术运算的变异
   /* 8-bit arithmetics. */
 
   stage_name  = "arith 8/8";
@@ -5489,7 +5500,7 @@ skip_bitflip:
     u8 orig = out_buf[i];
 
     /* Let's consult the effector map... */
-
+//这里会用到 effector map
     if (!eff_map[EFF_APOS(i)]) {
       stage_max -= 2 * ARITH_MAX;
       continue;
@@ -5728,7 +5739,7 @@ skip_arith:
   /**********************
    * INTERESTING VALUES *
    **********************/
-
+//interesting 阶段；
   stage_name  = "interest 8/8";
   stage_short = "int8";
   stage_cur   = 0;
@@ -5864,7 +5875,7 @@ skip_arith:
     u32 orig = *(u32*)(out_buf + i);
 
     /* Let's consult the effector map... */
-
+//考虑effector map的作用
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)] &&
         !eff_map[EFF_APOS(i + 2)] && !eff_map[EFF_APOS(i + 3)]) {
       stage_max -= sizeof(interesting_32) >> 1;
@@ -5922,11 +5933,11 @@ skip_interest:
   /********************
    * DICTIONARY STUFF *
    ********************/
-
+//字典生成的变异
   if (!extras_cnt) goto skip_user_extras;
 
   /* Overwrite with user-supplied extras. */
-
+//-x的时候，用户提供的，直接覆盖
   stage_name  = "user extras (over)";
   stage_short = "ext_UO";
   stage_cur   = 0;
@@ -5984,7 +5995,7 @@ skip_interest:
   stage_cycles[STAGE_EXTRAS_UO] += stage_max;
 
   /* Insertion of user-supplied extras. */
-
+//-x用户提供的token，插入种子中
   stage_name  = "user extras (insert)";
   stage_short = "ext_UI";
   stage_cur   = 0;
@@ -6033,7 +6044,7 @@ skip_interest:
   stage_cycles[STAGE_EXTRAS_UI] += stage_max;
 
 skip_user_extras:
-
+//用自动生成的字典，只提供overwrite的形式
   if (!a_extras_cnt) goto skip_extras;
 
   stage_name  = "auto extras (over)";
@@ -6094,7 +6105,7 @@ skip_extras:
   /****************
    * RANDOM HAVOC *
    ****************/
-
+//随即处理阶段，因为前面的阶段耗时长，所以，从第二轮开始，就直接跳到此处进行变异；
 havoc_stage:
 
   stage_cur_byte = -1;
@@ -6153,14 +6164,14 @@ havoc_stage:
         case 1: 
 
           /* Set byte to interesting value. */
-
+//随机翻转某一位
           out_buf[UR(temp_len)] = interesting_8[UR(sizeof(interesting_8))];
           break;
 
         case 2:
 
           /* Set word to interesting value, randomly choosing endian. */
-
+//随机选择word，替换interesting value；不考虑大端序/小端序
           if (temp_len < 2) break;
 
           if (UR(2)) {
@@ -6180,7 +6191,7 @@ havoc_stage:
         case 3:
 
           /* Set dword to interesting value, randomly choosing endian. */
-
+//随机选择dword，替换interesting value；随机选择大端序/小端序
           if (temp_len < 4) break;
 
           if (UR(2)) {
@@ -6200,21 +6211,21 @@ havoc_stage:
         case 4:
 
           /* Randomly subtract from byte. */
-
+//随机减数
           out_buf[UR(temp_len)] -= 1 + UR(ARITH_MAX);
           break;
 
         case 5:
 
           /* Randomly add to byte. */
-
+//随机加数
           out_buf[UR(temp_len)] += 1 + UR(ARITH_MAX);
           break;
 
         case 6:
 
           /* Randomly subtract from word, random endian. */
-
+//16位减、随机大端序/小端序
           if (temp_len < 2) break;
 
           if (UR(2)) {
@@ -6238,7 +6249,7 @@ havoc_stage:
         case 7:
 
           /* Randomly add to word, random endian. */
-
+//16位随机加，不考虑大端序/小端序
           if (temp_len < 2) break;
 
           if (UR(2)) {
@@ -6312,7 +6323,7 @@ havoc_stage:
           /* Just set a random byte to a random value. Because,
              why not. We use XOR with 1-255 to eliminate the
              possibility of a no-op. */
-
+//选择某个字节，设置成一个随机数
           out_buf[UR(temp_len)] ^= 1 + UR(255);
           break;
 
@@ -6321,7 +6332,7 @@ havoc_stage:
             /* Delete bytes. We're making this a bit more likely
                than insertion (the next option) in hopes of keeping
                files reasonably small. */
-
+//随机删除一段
             u32 del_from, del_len;
 
             if (temp_len < 2) break;
@@ -6342,7 +6353,7 @@ havoc_stage:
           }
 
         case 13:
-
+          //位置随机、插入随机内容（75%是原文中的内容，25%是随机生成的）
           if (temp_len + HAVOC_BLK_XL < MAX_FILE) {
 
             /* Clone bytes (75%) or insert a block of constant bytes (25%). */
@@ -6640,7 +6651,7 @@ retry_splicing:
   }
 
 #endif /* !IGNORE_FINDS */
-
+//什么都没发现
   ret_val = 0;
 
 abandon_entry:
@@ -6670,7 +6681,7 @@ abandon_entry:
 
 
 /* Grab interesting test cases from other fuzzers. */
-
+//并行fuzz
 static void sync_fuzzers(char** argv) {
 
   DIR* sd;
@@ -7133,7 +7144,7 @@ EXP_ST void setup_dirs_fds(void) {
   s32 fd;
 
   ACTF("Setting up output directories...");
-
+//并行情况的处理
   if (sync_id && mkdir(sync_dir, 0700) && errno != EEXIST)
       PFATAL("Unable to create '%s'", sync_dir);
 
@@ -7160,7 +7171,7 @@ EXP_ST void setup_dirs_fds(void) {
   }
 
   /* Queue directory for any starting & discovered paths. */
-
+//队列目录
   tmp = alloc_printf("%s/queue", out_dir);
   if (mkdir(tmp, 0700)) PFATAL("Unable to create '%s'", tmp);
   ck_free(tmp);
@@ -7198,7 +7209,7 @@ EXP_ST void setup_dirs_fds(void) {
   ck_free(tmp);
 
   /* Sync directory for keeping track of cooperating fuzzers. */
-
+//同步文件夹，多线程跑的时候，用于keeping track
   if (sync_id) {
 
     tmp = alloc_printf("%s/.synced/", out_dir);
@@ -7266,7 +7277,7 @@ EXP_ST void setup_stdio_file(void) {
 
 
 /* Make sure that core dumps don't go to a program. */
-
+//检查是否发生core dump
 static void check_crash_handling(void) {
 
 #ifdef __APPLE__
@@ -7332,7 +7343,7 @@ static void check_crash_handling(void) {
 
 
 /* Check CPU governor. */
-
+//主要是cpu调度算法
 static void check_cpu_governor(void) {
 
   FILE* f;
@@ -7388,7 +7399,7 @@ static void check_cpu_governor(void) {
 
 
 /* Count the number of logical CPU cores. */
-
+// 逻辑核的数量；不是有多少cpu内核
 static void get_core_count(void) {
 
   u32 cur_runnable = 0;
@@ -7758,7 +7769,7 @@ int main(int argc, char** argv) {
   u32 sync_interval_cnt = 0, seek_to;
   u8  *extras_dir = 0;
   u8  mem_limit_given = 0;
-  u8  exit_1 = !!getenv("AFL_BENCH_JUST_ONE");
+  u8  exit_1 = !!getenv("AFL_BENCH_JUST_ONE");//设定只跑一次
   char** use_argv;
 
   struct timeval tv;
@@ -7947,15 +7958,17 @@ int main(int argc, char** argv) {
     }
 
   if (optind == argc || !in_dir || !out_dir) usage(argv[0]);
-
+//设置信号句柄
   setup_signal_handlers();
+//检测asan选项
   check_asan_opts();
 
   if (sync_id) fix_up_sync();
-
+//检查in out文件夹是否相同
   if (!strcmp(in_dir, out_dir))
     FATAL("Input and output directories can't be the same");
 
+//设置环境变量
   if (dumb_mode) {
 
     if (crash_mode) FATAL("-C and -n are mutually exclusive");
@@ -7991,31 +8004,37 @@ int main(int argc, char** argv) {
 
   check_if_tty();
 
+//获取cpu逻辑核数
   get_core_count();
-
+//尝试绑定空闲cpu
 #ifdef HAVE_AFFINITY
   bind_to_free_cpu();
 #endif /* HAVE_AFFINITY */
-
+//确保 core dump 不发生
   check_crash_handling();
+//cpu的调度管理
   check_cpu_governor();
 
   setup_post();
+  //创建共享内存 && 各种覆盖状态
   setup_shm();
+  //初始化统计计数桶
   init_count_class16();
-
+//设置文件夹；主要是out目录的相关操作
   setup_dirs_fds();
+//read测试用例，读取种子
   read_testcases();
+//自动加载字典
   load_auto();
 
   pivot_inputs();
-
+//加载用户通过-x指定的字典
   if (extras_dir) load_extras(extras_dir);
 
   if (!timeout_given) find_timeout();
-
+//检查是否有@@，通过文件
   detect_file_args(argv + optind + 1);
-
+//标准输入流
   if (!out_file) setup_stdio_file();
 
   check_binary(argv[optind]);
@@ -8026,15 +8045,16 @@ int main(int argc, char** argv) {
     use_argv = get_qemu_argv(argv[0], argv + optind, argc - optind);
   else
     use_argv = argv + optind;
-
+//校验初始种子，对种子进行处理
   perform_dry_run(use_argv);
-//开始真正的fuzz
+//更新队列
   cull_queue();
-
+//显示ui界面，更新，显示状态
   show_init_stats();
 
+//开始真正的fuzz
   seek_to = find_start_position();
-
+//写到 out/fuzz_stats
   write_stats_file(0, 0, 0);
   save_auto();
 
@@ -8051,12 +8071,13 @@ int main(int argc, char** argv) {
   while (1) {
 
     u8 skipped_fuzz;
-
+//更新队列
     cull_queue();
 
     if (!queue_cur) {
-
+//现在在进行第几轮的循环
       queue_cycle++;
+//现在fuzz的是第几个值
       current_entry     = 0;
       cur_skipped_paths = 0;
       queue_cur         = queue;
@@ -8066,7 +8087,7 @@ int main(int argc, char** argv) {
         seek_to--;
         queue_cur = queue_cur->next;
       }
-
+//显示状态
       show_stats();
 
       if (not_on_tty) {
@@ -8076,7 +8097,7 @@ int main(int argc, char** argv) {
 
       /* If we had a full queue cycle with no new finds, try
          recombination strategies next. */
-
+//队列没有更新的话，没有产生interesting的种子
       if (queued_paths == prev_queued) {
 
         if (use_splicing) cycles_wo_finds++; else use_splicing = 1;
@@ -8084,7 +8105,7 @@ int main(int argc, char** argv) {
       } else cycles_wo_finds = 0;
 
       prev_queued = queued_paths;
-
+//并行fuzz
       if (sync_id && queue_cycle == 1 && getenv("AFL_IMPORT_FIRST"))
         sync_fuzzers(use_argv);
 

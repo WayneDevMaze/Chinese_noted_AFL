@@ -11,11 +11,11 @@
 ### 【一】自定义头文件  
 这部分几个头文件都比较重要，源码都是需要看的  
 ```c
-#include "config.h"
-#include "types.h"
-#include "debug.h"
-#include "alloc-inl.h"
-#include "hash.h"
+#include "config.h"  
+#include "types.h"  
+#include "debug.h"  
+#include "alloc-inl.h"  
+#include "hash.h"  
 ```  
 1. 配置文件，包含各种宏定义，属于通用配置。比如bitflip变异时收集的`token`的长度和数量会在此文件中进行定义。  
 2. 类型重定义，一些在 `afl-fuzz.c` 中看不太懂的类型，可以在这里看看是不是有相关定义，比如 `u8` 在源码中经常出现，实际上在这个头文件可以看出 `typedef uint8_t  u8`，所以其对应的类型应该是 `uint8_t` ，对应的是 C99 标准里的无符号字符型  
