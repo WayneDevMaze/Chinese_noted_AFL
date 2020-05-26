@@ -7768,9 +7768,9 @@ int main(int argc, char** argv) {
   u64 prev_queued = 0;
   u32 sync_interval_cnt = 0, seek_to;
   u8  *extras_dir = 0;
-  u8  mem_limit_given = 0;
+  u8  mem_limit_given = 0;//内存限定
   u8  exit_1 = !!getenv("AFL_BENCH_JUST_ONE");//设定只跑一次
-  char** use_argv;
+  char** use_argv;//命令后面的一系列参数
 
   struct timeval tv;
   struct timezone tz;
@@ -7837,13 +7837,13 @@ int main(int argc, char** argv) {
         out_file = optarg;
         break;
 
-      case 'x': /* dictionary */
+      case 'x': /* dictionary 指定字典，变异阶段会用*/
 
         if (extras_dir) FATAL("Multiple -x options not supported");
         extras_dir = optarg;
         break;
 
-      case 't': { /* timeout */
+      case 't': { /* timeout 因为后面阶段是while循环，这里可以通过设置t来实现定时停止fuzzing*/
 
           u8 suffix = 0;
 
@@ -7860,7 +7860,7 @@ int main(int argc, char** argv) {
 
       }
 
-      case 'm': { /* mem limit */
+      case 'm': { /* mem limit 内存限制*/
 
           u8 suffix = 'M';
 
@@ -7942,7 +7942,7 @@ int main(int argc, char** argv) {
         use_banner = optarg;
         break;
 
-      case 'Q': /* QEMU mode */
+      case 'Q': /* QEMU mode 这个模式是用于没有源码的情况下进行fuzz*/
 
         if (qemu_mode) FATAL("Multiple -Q options not supported");
         qemu_mode = 1;
@@ -8127,7 +8127,7 @@ int main(int argc, char** argv) {
     queue_cur = queue_cur->next;
     current_entry++;
 
-  }
+  }//while部分在这里结束
 
   if (queue_cur) show_stats();
 
@@ -8146,7 +8146,7 @@ int main(int argc, char** argv) {
   write_stats_file(0, 0, 0);
   save_auto();
 
-/*利用loop强制跳到结束*/
+/*利用loop强制跳到结束，作者用了不少loop跳转，比如在变异阶段的skip_bitflip等，虽然最开始学c的时候，老师也说用loop不好，但是实际情况是用loop真香，在跳转中用的好很好用。*/
 stop_fuzzing:
 
   SAYF(CURSOR_SHOW cLRD "\n\n+++ Testing aborted %s +++\n" cRST,
