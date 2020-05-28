@@ -8057,7 +8057,8 @@ int main(int argc, char** argv) {
 //写到 out/fuzz_stats
   write_stats_file(0, 0, 0);
   save_auto();
-
+//在main函数中一共只用了两次goto，都是为了结束afl的fuzz过程；
+//还用到stop_soon变量，这是个标志变量，表示是否按下Ctrl-c，所以ctrl-c是用来停止afl的
   if (stop_soon) goto stop_fuzzing;
 
   /* Woop woop woop */
@@ -8121,9 +8122,9 @@ int main(int argc, char** argv) {
     }
 
     if (!stop_soon && exit_1) stop_soon = 2;
-
+//如果按下ctrl-c跳出循环
     if (stop_soon) break;
-
+//队列继续，进行到下一节点
     queue_cur = queue_cur->next;
     current_entry++;
 
@@ -8146,14 +8147,15 @@ int main(int argc, char** argv) {
   write_stats_file(0, 0, 0);
   save_auto();
 
-/*利用loop强制跳到结束，作者用了不少loop跳转，比如在变异阶段的skip_bitflip等，虽然最开始学c的时候，老师也说用loop不好，但是实际情况是用loop真香，在跳转中用的好很好用。*/
+/*利用goto强制跳到结束，作者用了不少goto跳转，比如在变异阶段的skip_bitflip等，虽然最开始学c的时候，老师也说用goto不好，但是实际情况是用goto真香，在跳转中用的好很好用。*/
 stop_fuzzing:
 
   SAYF(CURSOR_SHOW cLRD "\n\n+++ Testing aborted %s +++\n" cRST,
        stop_soon == 2 ? "programmatically" : "by user");
 
   /* Running for more than 30 minutes but still doing first cycle? */
-  /* 运行超过三十分钟，还是第一轮fuzz。 ？：什么情况下会这样，用例数量太多？用例不够精简？程序复杂？程序设置了陷阱让你一直在里面跑来跑去？*/
+  /* 运行超过三十分钟，还是第一轮fuzz，就给出提示，说明刚刚的fuzz过程8太行。
+  这时候可以考虑考虑什么情况下会这样，用例数量太多？用例不够精简？程序复杂？程序设置了陷阱让你一直在里面跑来跑去？*/
   if (queue_cycle == 1 && get_cur_time() - start_time > 30 * 60 * 1000) {
 
     SAYF("\n" cYEL "[!] " cRST
@@ -8161,7 +8163,7 @@ stop_fuzzing:
            "    (For info on resuming, see %s/README.)\n", doc_path);
 
   }
-  /*  */
+  /* 善后工作 */
   fclose(plot_file);
   destroy_queue();
   destroy_extras();
