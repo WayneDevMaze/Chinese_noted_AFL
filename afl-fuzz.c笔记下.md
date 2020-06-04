@@ -88,7 +88,7 @@ fuzz_one函数将近两千行，每一个变异阶段都有自己的功能，怎
   u8  a_collect[MAX_AUTO_EXTRA];
   u32 a_len = 0;
 ```
-eff_map的类型是u8（上篇解释过这种看不懂的，可以去config里找，这是一个无符号整形（0～255）），并且u8类型只有这一个是map命名形式的，在后面的注释中如果出现Effector map，说的就是这个变量。主要的作用就是标记，在初始化数组的地方有这么一段注释**Initialize effector map for the next step (see comments below). Always flag first and last byte as doing something.**把第一个和最后一个字节单独标记出来用作其他用途，这里其实就说明了，这个map是标记作用，那是标记什么呢，怎么在变异阶段互相影响的呢？
+eff_map的类型是u8（上篇解释过这种看不懂的，可以去types.h里找，这是一个uint8_t = unsigned char 形，8比特（0~255）），并且u8类型只有这一个是map命名形式的，在后面的注释中如果出现Effector map，说的就是这个变量。主要的作用就是标记，在初始化数组的地方有这么一段注释**Initialize effector map for the next step (see comments below). Always flag first and last byte as doing something.**把第一个和最后一个字节单独标记出来用作其他用途，这里其实就说明了，这个map是标记作用，那是标记什么呢，怎么在变异阶段互相影响的呢？
 ##### 【2】eff_map 代码实现 & 运用的主要思路：
 **初始化：**  
 ****
