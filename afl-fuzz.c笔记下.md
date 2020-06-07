@@ -130,14 +130,20 @@ type(_p) EFF_SPAN_ALEN(_p, _l){
   u8  a_collect[MAX_AUTO_EXTRA];
   u32 a_len = 0;
 ```
-eff_map的类型是u8（*上篇解释过这种看不懂的，可以去types.h里找，这是一个uint8_t = unsigned char 形，8比特（0~255）*），并且u8类型只有这一个是map命名形式的，在后面的注释中如果出现Effector map，说的就是这个变量。主要的作用就是标记，在初始化数组的地方有这么一段注释**Initialize effector map for the next step (see comments below). Always flag first and last byte as doing something.**把第一个和最后一个字节单独标记出来用作其他用途，这里其实就说明了，这个map是标记作用，那是标记什么呢，标记当前byte对应的map块是否需要进行阶段变异。如果是0意味着不需要变异，比如一开始分析的 `arithmetic 8/8` 阶段。  
+eff_map的类型是u8（*上篇解释过这种看不懂的，可以去types.h里找，这是一个uint8_t = unsigned char 形，8比特（0~255）*），并且u8类型只有这一个是map命名形式的，在后面的注释中如果出现Effector map，说的就是这个变量。主要的作用就是标记，在初始化数组的地方有这么一段注释**Initialize effector map for the next step (see comments below). Always flag first and last byte as doing something.**把第一个和最后一个字节单独标记出来用作其他用途，这里其实就说明了，这个map是标记作用，那是标记什么呢，标记当前byte对应的map块是否需要进行阶段变异。如果是0意味着不需要变异，非0（比如1）就需要变异，比如一开始分析的 `arithmetic 8/8` 阶段就用过这个eff_map，此时已经它在bitflip阶段经过了改变了。  
 
 ### 2. init_forkserver函数
 用于fork server进行的初始化，这部分跟插桩息息相关，只有插桩模式才会运行这部分，可以配合afl-as.h文件一起看。  
-
+这里的整体流程是这样的：  
+1. 局部变量，用于设置管道记录信息，以及读取进程记录状态
+2. fork一个进程
+3. execv执行fork severe
+4. 关闭不需要的通道
+5. 读取第一步设置的两个通道的状态
+6. 从状态通道读取4个字节，并且监测是否成功，如果成功会输出“All right - fork server is up.”
 
 ### 3. show_stats函数
-如果说在AFL运行的界面，看到那个不懂的变量，或者想单独看那个参数是怎么来的，就从这个函数入手就对了，对应着界面的字符串定位到函数的位置，然后从变量再定位到相应位置，就可以很轻松的理解参数的含义和求法。
+这个函数技术上没什么好说的，就是用来展示那个fuzz界面的，每次有数据更新的时候就会调用这个函数刷新页面，如果说在AFL运行的界面，看到哪个不懂的变量，或者想单独看那个参数是怎么来的，就从这个函数入手就对了，对应着界面的字符串定位到函数的位置，然后从变量再定位到相应位置，就可以很轻松的理解参数的含义和求法。
 
 ------------------------------------------------------------
 

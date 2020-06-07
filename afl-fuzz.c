@@ -2122,7 +2122,7 @@ EXP_ST void init_forkserver(char** argv) {
 
   setitimer(ITIMER_REAL, &it, NULL);
 
-  rlen = read(fsrv_st_fd, &status, 4);
+  rlen = read(fsrv_st_fd, &status, 4);//从通道读取四个字节的长度，返回给rlen
 
   it.it_value.tv_sec = 0;
   it.it_value.tv_usec = 0;
@@ -2132,7 +2132,7 @@ EXP_ST void init_forkserver(char** argv) {
   /* If we have a four-byte "hello" message from the server, we're all set.
      Otherwise, try to figure out what went wrong. */
 
-  if (rlen == 4) {
+  if (rlen == 4) {//之前的read读取没问题
     OKF("All right - fork server is up.");
     return;
   }
