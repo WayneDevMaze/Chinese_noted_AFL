@@ -1,4 +1,4 @@
-带图笔记Blog地址：[https://www.cnblogs.com/wayne-tao/p/11889718.html](https://www.cnblogs.com/wayne-tao/p/11889718.html)
+笔记Blog地址：[https://www.cnblogs.com/wayne-tao/p/11889718.html](https://www.cnblogs.com/wayne-tao/p/11889718.html)
 ## tmin笔记
 ### tmin用法
 ```c

@@ -1,4 +1,4 @@
-带图笔记Blog地址：[https://www.cnblogs.com/wayne-tao/p/11889718.html](https://www.cnblogs.com/wayne-tao/p/11889718.html)
+笔记Blog地址：[https://www.cnblogs.com/wayne-tao/p/11889718.html](https://www.cnblogs.com/wayne-tao/p/11889718.html)
 ## cmin笔记  
 cmin是一个用来减小输入集合的工具
 ### cmin用法
