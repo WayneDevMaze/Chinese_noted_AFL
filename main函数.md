@@ -1,3 +1,4 @@
+对主要代码进行注解，有错误之处或者疑义，欢迎讨论[issues](https://github.com/WayneDevMaze/Chinese_noted_AFL/issues)
 ``` C++
 int main(int argc, char** argv) {
 //局部变量
