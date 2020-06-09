@@ -24,6 +24,6 @@ afl-fuzz.c笔记文件记录了看源码时候记录的一些笔记，现在还�
 Ⅵ、附录，一些看过比较好的文章分享。
 
 ## 近期的计划是：
-一、对ijon进行复现（还差trace模式有点问题）（~~目前解决maze问题 && SMB马里奥video模式~~）
-二、实现AFL、MOpt-afl、Angora、QSYM、ijon+afl对LAVA-M数据集的测试，然后编写易用的一键式脚本（后面写论文肯定要用的[笔记上](https://www.cnblogs.com/wayne-tao/p/12813355.html)、[笔记中](https://www.cnblogs.com/wayne-tao/p/12834525.html)还剩最后一部分）
-三、测试那个256-AFL和一般的AFL有多少改进（https://gamozolabs.github.io/fuzzing/2018/09/16/scaling_afl.html）
+一、对ijon进行复现（还差trace模式有点问题）（~~目前解决maze问题 && SMB马里奥video模式~~）  
+二、实现AFL、MOpt-afl、Angora、QSYM、ijon+afl对LAVA-M数据集的测试，然后编写易用的一键式脚本（后面写论文肯定要用的[笔记上](https://www.cnblogs.com/wayne-tao/p/12813355.html)、[笔记中](https://www.cnblogs.com/wayne-tao/p/12834525.html)还剩最后一部分）  
+三、测试那个256-AFL和一般的AFL有多少改进（https://gamozolabs.github.io/fuzzing/2018/09/16/scaling_afl.html）  
