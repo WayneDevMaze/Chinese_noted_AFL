@@ -12,19 +12,18 @@
 详细说明：[afl-cmin魔改](https://www.cnblogs.com/wayne-tao/p/11971922.html)
 
 ## afl-fuzz.c笔记
-afl-fuzz.c笔记文件记录了看源码时候记录的一些笔记，现在还不成系统，边看边写，在看雪上也有（上篇、下篇），欢迎点赞收藏。
-[AFL笔记上篇]  
-[AFL笔记下篇]  
+afl-fuzz.c笔记文件记录了看源码时候记录的一些笔记，现在还不成系统，边看边写，在看雪上也有（上篇、下篇），欢迎点赞收藏。  
+[AFL笔记上篇](https://bbs.pediy.com/thread-257399.htm)  
+[AFL笔记下篇](https://bbs.pediy.com/thread-259982.htm)  
 总共分为五个部分：  
-
 Ⅰ、文件引用：主要是对所引用头文件的解释，包括自定义头文件和标准库的头文件。  
-
 Ⅱ、预备工作：从预处理、变量、结构体三个方面进行记录。  
-
 Ⅲ、fuzzing的整体结构：对fuzzing过程中的大过程进行划分，其中主要记录关于输入命令的while，文件变异方式（六种），fuzzing的策略，以及语料库的更新。  
-
 Ⅳ、关键函数实现原理：按照大的功能块的划分，记录一些关键函数的理解。  
-
 Ⅴ、main函数：对main函数的循环进行完整解释。  
-
 Ⅵ、附录，一些看过比较好的文章分享。
+
+## 近期的计划是：
+一、对ijon进行复现（还差trace模式有点问题）（~~目前解决maze问题 && SMB马里奥video模式~~）
+二、实现AFL、MOpt-afl、Angora、QSYM、ijon+afl对LAVA-M数据集的测试，然后编写易用的一键式脚本（后面写论文肯定要用的[笔记上](https://www.cnblogs.com/wayne-tao/p/12813355.html)、[笔记中](https://www.cnblogs.com/wayne-tao/p/12834525.html)还剩最后一部分）
+三、测试那个256-AFL和一般的AFL有多少改进（https://gamozolabs.github.io/fuzzing/2018/09/16/scaling_afl.html）
